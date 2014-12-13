@@ -83,7 +83,8 @@ ARAVIS_SRCS_NO_INTRO =				\
 	arvzip.c				\
 	arvstr.c				\
 	arvgvcp.c				\
-	arvgvsp.c
+	arvgvsp.c				\
+	arvgvspsocket.c
 
 ARAVIS_HDRS = 					\
 	arv.h					\
