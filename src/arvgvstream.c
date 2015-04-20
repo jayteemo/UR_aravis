@@ -51,7 +51,8 @@ enum {
 	ARV_GV_STREAM_PROPERTY_SOCKET_BUFFER_SIZE,
 	ARV_GV_STREAM_PROPERTY_PACKET_RESEND,
 	ARV_GV_STREAM_PROPERTY_PACKET_TIMEOUT,
-	ARV_GV_STREAM_PROPERTY_FRAME_RETENTION
+	ARV_GV_STREAM_PROPERTY_FRAME_RETENTION,
+	ARV_GV_STREAM_PROPERY_POLL_TIMEOUT_US
 } ArvGvStreamProperties;
 
 static GObjectClass *parent_class = NULL;
@@ -97,6 +98,7 @@ typedef struct {
 	ArvGvStreamPacketResend packet_resend;
 	guint packet_timeout_us;
 	guint frame_retention_us;
+	guint stream_timeout_us;
 
 	guint64 timestamp_tick_frequency;
 	guint data_size;
@@ -611,7 +613,7 @@ arv_gv_stream_thread (void *data)
 		if (thread_data->frames != NULL)
 			timeout_ms = thread_data->packet_timeout_us / 1000;
 		else
-			timeout_ms = ARV_GV_STREAM_POLL_TIMEOUT_US / 1000;
+			timeout_ms = thread_data->stream_timeout_us / 1000;
 
 		n_events = g_poll (&poll_fd, 1, timeout_ms);
 
@@ -765,6 +767,7 @@ arv_gv_stream_new (GInetAddress *device_address, guint16 port,
 	thread_data->packet_resend = ARV_GV_STREAM_PACKET_RESEND_ALWAYS;
 	thread_data->packet_timeout_us = ARV_GV_STREAM_PACKET_TIMEOUT_US_DEFAULT;
 	thread_data->frame_retention_us = ARV_GV_STREAM_FRAME_RETENTION_US_DEFAULT;
+	thread_data->stream_timeout_us = ARV_GV_STREAM_POLL_TIMEOUT_US;
 	thread_data->timestamp_tick_frequency = timestamp_tick_frequency;
 	thread_data->data_size = packet_size - ARV_GVSP_PACKET_PROTOCOL_OVERHEAD;
 	thread_data->cancel = FALSE;
@@ -866,6 +869,9 @@ arv_gv_stream_set_property (GObject * object, guint prop_id,
 		case ARV_GV_STREAM_PROPERTY_FRAME_RETENTION:
 			thread_data->frame_retention_us = g_value_get_uint (value);
 			break;
+		case ARV_GV_STREAM_PROPERY_POLL_TIMEOUT_US:
+			thread_data->stream_timeout_us = g_value_get_uint (value);
+			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 			break;
@@ -896,6 +902,9 @@ arv_gv_stream_get_property (GObject * object, guint prop_id,
 			break;
 		case ARV_GV_STREAM_PROPERTY_FRAME_RETENTION:
 			g_value_set_uint (value, thread_data->frame_retention_us);
+			break;
+		case ARV_GV_STREAM_PROPERY_POLL_TIMEOUT_US:
+			g_value_set_uint (value, thread_data->stream_timeout_us);
 			break;
 		default:
 			G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -1031,6 +1040,15 @@ arv_gv_stream_class_init (ArvGvStreamClass *gv_stream_class)
 				   ARV_GV_STREAM_FRAME_RETENTION_US_DEFAULT,
 				   G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)
 		);
+	g_object_class_install_property (
+			object_class, ARV_GV_STREAM_PROPERY_POLL_TIMEOUT_US,
+			g_param_spec_uint ("stream-poll-timeout", "Stream poll timeout",
+					   "Stream polling timeout, in µs",
+					   0,
+					   ARV_GV_STREAM_POLL_TIMEOUT_US,
+					   ARV_GV_STREAM_POLL_TIMEOUT_US,
+					   G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)
+			);
 }
 
 G_DEFINE_TYPE (ArvGvStream, arv_gv_stream, ARV_TYPE_STREAM)
